@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Akses Ruangan{% endblock %}
+{% block breadcrumb %}Akses Ruangan{% endblock %}
+{% block page_title %}Room Access Control{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════
+     ROOM STATS
+═══════════════════════════════════════ -->
+<div class="glass-card anim-enter" style="animation-delay:0.05s;margin-bottom:20px">
+    <div class="card-header">
+        <div class="card-title">
+            <i data-lucide="door-open"></i>
+            <h3>{{ ruangan.nama if ruangan else 'Ruangan' }}</h3>
+        </div>
+        <div class="room-header-bar">
+            <span class="room-badge">{{ ruangan.kode if ruangan else '-' }}</span>
+            <span class="room-badge" style="background:rgba(16,185,129,0.12);color:var(--success);border-color:rgba(16,185,129,0.2)">
+                RFID: {{ ruangan.reader_id if ruangan else '-' }}
+            </span>
+        </div>
+    </div>
+
+    <div class="room-stats-row">
+        <div class="room-stat-mini">
+            <div class="stat-num" id="presenceCount">{{ room_stats.total_dalam_ruangan }}</div>
+            <div class="stat-lbl">Di Dalam</div>
+        </div>
+        <div class="room-stat-mini">
+            <div class="stat-num">{{ room_stats.total_akses_hari_ini }}</div>
+            <div class="stat-lbl">Akses Hari Ini</div>
+        </div>
+        <div class="room-stat-mini">
+            <div class="stat-num" style="color:var(--danger)">{{ room_stats.total_ditolak_hari_ini }}</div>
+            <div class="stat-lbl">Ditolak</div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PRESENCE + TIMELINE GRID
+═══════════════════════════════════════ -->
+<div class="room-access-grid">
+
+    <!-- Live Presence Panel -->
+    <div class="glass-card anim-enter" style="animation-delay:0.10s">
+        <div class="card-header">
+            <div class="card-title">
+                <i data-lucide="radio"></i>
+                <h3>Pegawai di Dalam Ruangan</h3>
+            </div>
+            <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-muted)">Real-time</span>
+        </div>
+
+        <div class="presence-list" id="presenceList">
+            {% if presence %}
+                {% for p in presence %}
+                <div class="presence-card">
+                    <div class="presence-avatar">{{ p.nama[:2]|upper }}</div>
+                    <div class="presence-info">
+                        <div class="presence-name">{{ p.nama }}</div>
+                        <div class="presence-time">
+                            <i data-lucide="clock"></i>
+                            Masuk {{ p.waktu_masuk.strftime('%H:%M') if p.waktu_masuk else '-' }}
+                        </div>
+                    </div>
+                    <span class="presence-apd-badge {{ 'apd-ok' if p.status_apd == 'lengkap' else 'apd-fail' }}">
+                        {{ 'APD OK' if p.status_apd == 'lengkap' else 'APD ✕' }}
+                    </span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state-compact">
+                    <i data-lucide="user-x"></i>
+                    <p>Ruangan kosong</p>
+                    <span>Belum ada pegawai di dalam ruangan</span>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Access Timeline -->
+    <div class="glass-card anim-enter" style="animation-delay:0.15s">
+        <div class="card-header">
+            <div class="card-title">
+                <i data-lucide="list"></i>
+                <h3>Riwayat Akses Hari Ini</h3>
+            </div>
+            <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-muted)">
+                {{ total }} event
+            </span>
+        </div>
+
+        <div class="access-timeline" id="accessTimeline">
+            {% if history %}
+                {% for h in history %}
+                <div class="timeline-entry">
+                    <div class="timeline-node {{ 'node-in' if h.aksi == 'IN' else ('node-out' if h.aksi == 'OUT' else 'node-denied') }}">
+                        <i data-lucide="{{ 'log-in' if h.aksi == 'IN' else ('log-out' if h.aksi == 'OUT' else 'x-circle') }}"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-header">
+                            <span class="timeline-name">{{ h.nama_pegawai or 'Unknown' }}</span>
+                            <span class="timeline-action-badge {{ 'badge-in' if h.aksi == 'IN' else ('badge-out' if h.aksi == 'OUT' else 'badge-denied') }}">
+                                {{ h.aksi }}
+                            </span>
+                        </div>
+                        <div class="timeline-meta">
+                            <i data-lucide="clock"></i>
+                            {{ h.waktu.strftime('%H:%M:%S') if h.waktu else '-' }}
+                            {% if h.nama_ruangan %}· {{ h.nama_ruangan }}{% endif %}
+                        </div>
+                        {% if h.alasan_tolak %}
+                            <div class="timeline-reason">{{ h.alasan_tolak }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state-compact">
+                    <i data-lucide="clock"></i>
+                    <p>Belum ada aktivitas</p>
+                    <span>Riwayat akses akan muncul di sini</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="pagination" style="padding:12px 20px;border-top:1px solid var(--border-subtle)">
+            {% if page > 1 %}
+                <a href="?page={{ page - 1 }}{% if tanggal %}&tanggal={{ tanggal }}{% endif %}" class="btn btn-sm">
+                    <i data-lucide="chevron-left" style="width:14px;height:14px"></i> Prev
+                </a>
+            {% endif %}
+            <span style="font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text-muted)">
+                Halaman {{ page }} / {{ total_pages }}
+            </span>
+            {% if page < total_pages %}
+                <a href="?page={{ page + 1 }}{% if tanggal %}&tanggal={{ tanggal }}{% endif %}" class="btn btn-sm">
+                    Next <i data-lucide="chevron-right" style="width:14px;height:14px"></i>
+                </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        initRoomPresence();
+        initAccessTimeline();
+        if (window.lucide) lucide.createIcons();
+    });
+</script>
+{% endblock %}

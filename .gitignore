@@ -1,0 +1,27 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch / Models
+*.pt
+*.pth
+
+# Project specific datasets and logs
+dataset_apd/
+dataset_wajah/
+runs/
+
+# IDE / OS files
+.vscode/
+.idea/
+.DS_Store

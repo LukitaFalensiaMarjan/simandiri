@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Pelanggaran{% endblock %}
+{% block breadcrumb %}Pelanggaran{% endblock %}
+{% block page_title %}Data Pelanggaran{% endblock %}
+
+{% block content %}
+
+<!-- Filter -->
+<div class="glass-card filter-card anim-enter" style="animation-delay:0.05s">
+    <form method="GET" action="/pelanggaran" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;width:100%">
+        <div class="filter-group">
+            <label for="tanggal">
+                <i data-lucide="calendar"></i>
+                Tanggal
+            </label>
+            <input type="date" name="tanggal" id="tanggal"
+                   value="{{ tanggal }}" class="filter-input">
+        </div>
+        <div class="filter-group">
+            <label for="nama">
+                <i data-lucide="user"></i>
+                Pegawai
+            </label>
+            <select name="nama" id="nama" class="filter-input">
+                <option value="">Semua Pegawai</option>
+                {% for n in nama_list %}
+                    <option value="{{ n }}" {{ 'selected' if nama == n }}>{{ n }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+                <i data-lucide="search"></i>Cari
+            </button>
+            <a href="/pelanggaran" class="btn btn-secondary">
+                <i data-lucide="rotate-ccw"></i>Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Data Info -->
+<div class="data-info anim-enter" style="animation-delay:0.10s">
+    <span class="data-count">
+        <i data-lucide="alert-triangle" style="color:var(--danger)"></i>
+        Total: <strong>{{ total }}</strong> pelanggaran
+    </span>
+    <span class="data-page">Hal. {{ page }} / {{ total_pages }}</span>
+</div>
+
+<!-- Table -->
+<div class="glass-card table-card anim-enter" style="animation-delay:0.15s">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Pegawai</th>
+                    <th>Waktu Pelanggaran</th>
+                    <th>APD Dilepas</th>
+                    <th>Kamera</th>
+                    <th>Severity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if data %}
+                    {% for row in data %}
+                    <tr class="table-row-animate" style="animation-delay:{{ loop.index * 0.025 }}s">
+                        <td class="td-center" style="color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:11px">
+                            {{ (page - 1) * 20 + loop.index }}
+                        </td>
+                        <td>
+                            <div class="cell-name">
+                                <div class="avatar avatar-danger">{{ row.nama_pegawai[0] | upper }}</div>
+                                <span style="font-weight:500;color:var(--text-primary)">{{ row.nama_pegawai }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="cell-time">
+                                <i data-lucide="clock" style="width:13px;height:13px;color:var(--danger)"></i>
+                                {{ row.waktu_pelanggaran | format_datetime }}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="apd-tags">
+                                {% set apd_list = row.apd_dilepas | parse_json %}
+                                {% for apd in apd_list %}
+                                    <span class="apd-tag apd-tag-violation">
+                                        <i data-lucide="x" style="width:9px;height:9px"></i>
+                                        {{ apd }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="cell-camera">
+                                <i data-lucide="video" style="width:13px;height:13px;color:var(--accent-blue)"></i>
+                                <span style="font-family:'JetBrains Mono',monospace;font-size:11px">{{ row.kamera }}</span>
+                            </div>
+                        </td>
+                        <td class="td-center">
+                            {% set apd_count = row.apd_dilepas | parse_json | length %}
+                            {% if apd_count >= 3 %}
+                                <span class="severity-badge severity-critical">
+                                    <i data-lucide="alert-octagon"></i>Kritis
+                                </span>
+                            {% elif apd_count >= 2 %}
+                                <span class="severity-badge severity-high">
+                                    <i data-lucide="alert-triangle"></i>Tinggi
+                                </span>
+                            {% else %}
+                                <span class="severity-badge severity-medium">
+                                    <i data-lucide="alert-circle"></i>Sedang
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <i data-lucide="check-circle" style="color:var(--success)"></i>
+                                <p>Tidak ada pelanggaran</p>
+                                <span>Semua pegawai mematuhi aturan APD 🎉</span>
+                            </div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+        <a href="?page={{ page - 1 }}&tanggal={{ tanggal }}&nama={{ nama }}" class="page-btn">
+            <i data-lucide="chevron-left"></i>
+        </a>
+    {% endif %}
+
+    {% set start_page = [1, page - 2] | max %}
+    {% set end_page   = [total_pages, page + 2] | min %}
+
+    {% if start_page > 1 %}
+        <a href="?page=1&tanggal={{ tanggal }}&nama={{ nama }}" class="page-btn">1</a>
+        {% if start_page > 2 %}<span class="page-ellipsis">···</span>{% endif %}
+    {% endif %}
+
+    {% for p in range(start_page, end_page + 1) %}
+        <a href="?page={{ p }}&tanggal={{ tanggal }}&nama={{ nama }}"
+           class="page-btn {{ 'active' if p == page }}">{{ p }}</a>
+    {% endfor %}
+
+    {% if end_page < total_pages %}
+        {% if end_page < total_pages - 1 %}<span class="page-ellipsis">···</span>{% endif %}
+        <a href="?page={{ total_pages }}&tanggal={{ tanggal }}&nama={{ nama }}" class="page-btn">{{ total_pages }}</a>
+    {% endif %}
+
+    {% if page < total_pages %}
+        <a href="?page={{ page + 1 }}&tanggal={{ tanggal }}&nama={{ nama }}" class="page-btn">
+            <i data-lucide="chevron-right"></i>
+        </a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.lucide) lucide.createIcons();
+    });
+</script>
+{% endblock %}

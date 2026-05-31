@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block breadcrumb %}Dashboard{% endblock %}
+{% block page_title %}Command Center{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════
+     STAT CARDS
+═══════════════════════════════════════ -->
+<div class="stats-grid">
+
+    <!-- Total Pegawai -->
+    <div class="stat-card stat-card-1 anim-enter" style="animation-delay:0.05s">
+        <div class="stat-header">
+            <div class="stat-icon-wrap">
+                <i data-lucide="users"></i>
+            </div>
+            <span class="stat-trend trend-flat">—</span>
+        </div>
+        <div class="stat-value" id="statPegawai">{{ stats.total_pegawai }}</div>
+        <div class="stat-label">Total Pegawai Terdaftar</div>
+        <div class="stat-bar">
+            <div class="stat-bar-fill" data-width="100" style="width:0%"></div>
+        </div>
+    </div>
+
+    <!-- Absensi -->
+    <div class="stat-card stat-card-2 anim-enter" style="animation-delay:0.10s">
+        <div class="stat-header">
+            <div class="stat-icon-wrap">
+                <i data-lucide="user-check"></i>
+            </div>
+            <span class="stat-trend trend-up">+{{ stats.absensi_hari_ini }}</span>
+        </div>
+        <div class="stat-value" id="statAbsensi">{{ stats.absensi_hari_ini }}</div>
+        <div class="stat-label">Absensi Hari Ini</div>
+        <div class="stat-bar">
+            {% set pct = ((stats.absensi_hari_ini / stats.total_pegawai * 100) | int) if stats.total_pegawai > 0 else 0 %}
+            <div class="stat-bar-fill" data-width="{{ pct }}" style="width:0%"></div>
+        </div>
+    </div>
+
+    <!-- Compliance -->
+    <div class="stat-card stat-card-3 anim-enter" style="animation-delay:0.15s">
+        <div class="stat-header">
+            <div class="stat-icon-wrap">
+                <i data-lucide="shield-check"></i>
+            </div>
+            <span class="stat-trend {% if stats.compliance_rate >= 80 %}trend-up{% elif stats.compliance_rate >= 50 %}trend-flat{% else %}trend-down{% endif %}">
+                {{ stats.compliance_rate }}%
+            </span>
+        </div>
+        <div class="stat-value" id="statCompliance">{{ stats.compliance_rate }}%</div>
+        <div class="stat-label">APD Compliance Rate</div>
+        <div class="stat-bar">
+            <div class="stat-bar-fill" data-width="{{ stats.compliance_rate }}" style="width:0%"></div>
+        </div>
+    </div>
+
+    <!-- Pelanggaran -->
+    <div class="stat-card stat-card-4 anim-enter" style="animation-delay:0.20s">
+        <div class="stat-header">
+            <div class="stat-icon-wrap">
+                <i data-lucide="alert-triangle"></i>
+            </div>
+            <span class="stat-trend {% if stats.pelanggaran_hari_ini > 0 %}trend-down{% else %}trend-up{% endif %}">
+                {% if stats.pelanggaran_hari_ini > 0 %}▲ {{ stats.pelanggaran_hari_ini }}{% else %}Aman{% endif %}
+            </span>
+        </div>
+        <div class="stat-value" id="statPelanggaran">{{ stats.pelanggaran_hari_ini }}</div>
+        <div class="stat-label">Pelanggaran Hari Ini</div>
+        <div class="stat-bar">
+            <div class="stat-bar-fill" data-width="{{ [stats.pelanggaran_hari_ini * 10, 100] | min }}" style="width:0%"></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════
+     LIVE CAMERA FEEDS
+═══════════════════════════════════════ -->
+<div class="glass-card anim-enter" style="animation-delay:0.25s;margin-bottom:20px">
+    <div class="card-header">
+        <div class="card-title">
+            <i data-lucide="video"></i>
+            <h3>Live Camera Feeds</h3>
+        </div>
+        <div class="refresh-indicator" id="refreshIndicator">
+            <i data-lucide="refresh-cw"></i>
+            <span>Auto-refresh 30s</span>
+        </div>
+    </div>
+
+    <div class="camera-grid">
+
+        <!-- Featured camera (main gate) -->
+        <div class="camera-feed featured" title="Klik untuk memperbesar">
+            <img id="cam-gerbang-utama" src="" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;z-index:1;" onerror="this.style.display='none'">
+            <canvas id="cam-gerbang-utama-canvas" style="width:100%;height:100%;display:block;position:absolute;z-index:0;"></canvas>
+            <div class="cam-hud" style="z-index:2;"></div>
+            <div class="cam-scanline"></div>
+            <div class="cam-feed-label">SIMANDIRI-CAM-01</div>
+            <div class="cam-timestamp">REC --:--:--</div>
+            <div class="cam-status-bar">
+                <span class="cam-name">GATE A — MAIN ENTRANCE</span>
+                <div class="cam-live-dot"></div>
+            </div>
+        </div>
+
+        <!-- Gate B -->
+        <div class="camera-feed">
+            <img id="cam-gerbang-b" src="" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;z-index:1;" onerror="this.style.display='none'">
+            <canvas id="cam-gerbang-b-canvas" style="width:100%;height:100%;display:block;position:absolute;z-index:0;"></canvas>
+            <div class="cam-hud"></div>
+            <div class="cam-scanline"></div>
+            <div class="cam-feed-label">SIMANDIRI-CAM-02</div>
+            <div class="cam-timestamp">REC --:--:--</div>
+            <div class="cam-status-bar">
+                <span class="cam-name">GATE B — EXIT</span>
+                <div class="cam-live-dot"></div>
+            </div>
+        </div>
+
+        <!-- Production floor 1 -->
+        <div class="camera-feed">
+            <img id="cam-area-1" src="" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;z-index:1;" onerror="this.style.display='none'">
+            <canvas id="cam-area-1-canvas" style="width:100%;height:100%;display:block;position:absolute;z-index:0;"></canvas>
+            <div class="cam-hud"></div>
+            <div class="cam-scanline"></div>
+            <div class="cam-feed-label">SIMANDIRI-CAM-03</div>
+            <div class="cam-timestamp">REC --:--:--</div>
+            <div class="cam-status-bar">
+                <span class="cam-name">PRODUCTION FLOOR 1</span>
+                <div class="cam-live-dot"></div>
+            </div>
+        </div>
+
+        <!-- Production floor 2 -->
+        <div class="camera-feed">
+            <img id="cam-area-2" src="" style="width:100%;height:100%;object-fit:cover;display:block;position:absolute;z-index:1;" onerror="this.style.display='none'">
+            <canvas id="cam-area-2-canvas" style="width:100%;height:100%;display:block;position:absolute;z-index:0;"></canvas>
+            <div class="cam-hud"></div>
+            <div class="cam-scanline"></div>
+            <div class="cam-feed-label">SIMANDIRI-CAM-04</div>
+            <div class="cam-timestamp">REC --:--:--</div>
+            <div class="cam-status-bar">
+                <span class="cam-name">PRODUCTION FLOOR 2</span>
+                <div class="cam-live-dot"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     CHARTS
+═══════════════════════════════════════ -->
+<div class="charts-grid">
+
+    <div class="glass-card anim-enter" style="animation-delay:0.30s">
+        <div class="card-header">
+            <div class="card-title">
+                <i data-lucide="trending-up"></i>
+                <h3>Tren Absensi — 7 Hari</h3>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="absensiChart"></canvas>
+        </div>
+    </div>
+
+    <div class="glass-card anim-enter" style="animation-delay:0.35s">
+        <div class="card-header">
+            <div class="card-title">
+                <i data-lucide="alert-circle"></i>
+                <h3>Tren Pelanggaran — 7 Hari</h3>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="pelanggaranChart"></canvas>
+        </div>
+    </div>
+
+<!-- ═══════════════════════════════════════
+     ROOM ACCESS — LIVE PRESENCE + TIMELINE
+═══════════════════════════════════════ -->
+<div class="room-access-grid anim-enter" style="animation-delay:0.32s">
+
+    <!-- Live Presence Panel -->
+    <div class="glass-card">
+        <div class="card-header">
+            <div class="card-title">
+                <i data-lucide="radio"></i>
+                <h3>Live Room Presence</h3>
+            </div>
+            <div class="room-header-bar">
+                <span class="room-badge">Ruang Produksi A</span>
+            </div>
+        </div>
+
+        <div class="occupancy-counter">
+            <div class="occupancy-number" id="presenceCount">{{ room_stats.total_dalam_ruangan }}</div>
+            <div class="occupancy-label">
+                orang di dalam
+                <br><span>Real-time · Auto-refresh 5s</span>
+            </div>
+        </div>
+
+        <div class="presence-list" id="presenceList">
+            {% if room_stats.presence %}
+                {% for p in room_stats.presence %}
+                <div class="presence-card">
+                    <div class="presence-avatar">{{ p.nama[:2]|upper }}</div>
+                    <div class="presence-info">
+                        <div class="presence-name">{{ p.nama }}</div>
+                        <div class="presence-time">
+                            <i data-lucide="clock"></i>
+                            Masuk {{ p.waktu_masuk.strftime('%H:%M') if p.waktu_masuk else '-' }}
+                        </div>
+                    </div>
+                    <span class="presence-apd-badge {{ 'apd-ok' if p.status_apd == 'lengkap' else 'apd-fail' }}">
+                        {{ 'APD OK' if p.status_apd == 'lengkap' else 'APD ✕' }}
+                    </span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state-compact">
+                    <i data-lucide="user-x"></i>
+                    <p>Ruangan kosong</p>
+                    <span>Belum ada pegawai di dalam ruangan</span>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Access Timeline -->
+    <div class="glass-card">
+        <div class="card-header">
+            <div class="card-title">
+                <i data-lucide="list"></i>
+                <h3>Riwayat Akses Ruangan</h3>
+            </div>
+            <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-muted)">Hari ini · Auto-refresh 10s</span>
+        </div>
+
+        <div class="access-timeline" id="accessTimeline">
+            <div class="empty-state-compact">
+                <i data-lucide="clock"></i>
+                <p>Memuat riwayat akses...</p>
+                <span>Data akan muncul segera</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════
+     RECENT ACTIVITY
+═══════════════════════════════════════ -->
+<div class="glass-card anim-enter" style="animation-delay:0.40s">
+    <div class="card-header">
+        <div class="card-title">
+            <i data-lucide="activity"></i>
+            <h3>Aktivitas Terkini</h3>
+        </div>
+        <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-muted)">Hari ini</span>
+    </div>
+    <div class="activity-list" id="activityList">
+        {% if recent_activity %}
+            {% for item in recent_activity %}
+            <div class="activity-item">
+                <div class="activity-icon {{ 'activity-absensi' if item.tipe == 'absensi' else 'activity-pelanggaran' }}">
+                    {% if item.tipe == 'absensi' %}
+                        <i data-lucide="log-in"></i>
+                    {% else %}
+                        <i data-lucide="alert-triangle"></i>
+                    {% endif %}
+                </div>
+                <div class="activity-content">
+                    <div class="activity-text">
+                        <strong>{{ item.nama_pegawai }}</strong>
+                        {% if item.tipe == 'absensi' %}
+                            — Absensi masuk &nbsp;
+                            <span class="badge {{ 'badge-success' if item.detail == 'lengkap' else 'badge-danger' }}">
+                                APD {{ item.detail | capitalize }}
+                            </span>
+                        {% else %}
+                            — Pelanggaran APD &nbsp;
+                            <span class="badge badge-warning">{{ item.detail }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="activity-time">
+                        <i data-lucide="clock"></i>
+                        {{ item.waktu }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i data-lucide="inbox"></i>
+                <p>Belum ada aktivitas hari ini</p>
+                <span>Data akan muncul saat sistem mendeteksi aktivitas</span>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const absensiChartData     = {{ absensi_chart | safe }};
+    const pelanggaranChartData = {{ pelanggaran_chart | safe }};
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initDashboardCharts(absensiChartData, pelanggaranChartData);
+        startDashboardAutoRefresh();
+        if (window.lucide) lucide.createIcons();
+
+        // Start live camera stream (Multi-Camera Setup via IP Address)
+        // 1. Ubah IP di bawah ini sesuai dengan IP LAN masing-masing laptop.
+        // 2. Pastikan laptop tersebut menjalankan script `kamera_node.py` atau `main_simandiri.py`
+        const cameraIPs = {
+            'cam-gerbang-utama': '192.168.1.8:5001', // Laptop 1 (Server & Gate A)
+            'cam-gerbang-b':     '192.168.1.102:5001', // Laptop 2 (Gate B)
+            'cam-area-1':        '192.168.1.103:5001', // Laptop 3 (Lantai 1)
+            'cam-area-2':        '192.168.1.104:5001'  // Laptop 4 (Lantai 2)
+        };
+
+        for (const [camId, ipAddress] of Object.entries(cameraIPs)) {
+            const camImg = document.getElementById(camId);
+            if (camImg) {
+                // Jika IP adalah localhost, otomatis sesuaikan dengan IP server web saat ini
+                const host = ipAddress.startsWith('127.0.0.1') ? window.location.hostname + ':5001' : ipAddress;
+                camImg.src = 'http://' + host + '/video_feed';
+            }
+        }
+    });
+</script>
+{% endblock %}

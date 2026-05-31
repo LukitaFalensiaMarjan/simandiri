@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Absensi{% endblock %}
+{% block breadcrumb %}Absensi{% endblock %}
+{% block page_title %}Data Absensi{% endblock %}
+
+{% block content %}
+
+<!-- Filter -->
+<div class="glass-card filter-card anim-enter" style="animation-delay:0.05s">
+    <form method="GET" action="/absensi" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;width:100%">
+        <div class="filter-group">
+            <label for="tanggal">
+                <i data-lucide="calendar"></i>
+                Tanggal
+            </label>
+            <input type="date" name="tanggal" id="tanggal"
+                   value="{{ tanggal }}" class="filter-input">
+        </div>
+        <div class="filter-group">
+            <label for="nama">
+                <i data-lucide="user"></i>
+                Nama Pegawai
+            </label>
+            <input type="text" name="nama" id="nama"
+                   value="{{ nama }}" class="filter-input" placeholder="Cari nama...">
+        </div>
+        <div class="filter-group">
+            <label for="status_hadir">
+                <i data-lucide="filter"></i>
+                Status Kehadiran
+            </label>
+            <select name="status_hadir" id="status_hadir" class="filter-input">
+                <option value="">Semua Kehadiran</option>
+                <option value="Hadir"       {{ 'selected' if status_hadir == 'Hadir' }}>Hadir</option>
+                <option value="Terlambat"   {{ 'selected' if status_hadir == 'Terlambat' }}>Terlambat</option>
+                <option value="Belum Hadir" {{ 'selected' if status_hadir == 'Belum Hadir' }}>Belum Hadir</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="status_apd">
+                <i data-lucide="shield"></i>
+                Status APD
+            </label>
+            <select name="status_apd" id="status_apd" class="filter-input">
+                <option value="">Semua Status APD</option>
+                <option value="lengkap"       {{ 'selected' if status_apd == 'lengkap' }}>Lengkap</option>
+                <option value="tidak_lengkap" {{ 'selected' if status_apd == 'tidak_lengkap' }}>Tidak Lengkap</option>
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+                <i data-lucide="search"></i>Cari
+            </button>
+            <a href="/absensi" class="btn btn-secondary">
+                <i data-lucide="rotate-ccw"></i>Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Summary Cards (Statistik Industri) -->
+<div class="stats-grid anim-enter" style="animation-delay:0.1s; margin-top:20px; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:20px;">
+    <div class="glass-card stat-card">
+        <div class="stat-icon" style="background:rgba(59,130,246,0.15); color:#3B82F6"><i data-lucide="users"></i></div>
+        <div class="stat-content">
+            <h3>{{ stats.total_pegawai }}</h3>
+            <p>Total Pegawai</p>
+        </div>
+    </div>
+    <div class="glass-card stat-card">
+        <div class="stat-icon" style="background:rgba(16,185,129,0.15); color:#10B981"><i data-lucide="check-circle"></i></div>
+        <div class="stat-content">
+            <h3>{{ stats.hadir }}</h3>
+            <p>Hadir (Tepat Waktu)</p>
+        </div>
+    </div>
+    <div class="glass-card stat-card">
+        <div class="stat-icon" style="background:rgba(245,158,11,0.15); color:#F59E0B"><i data-lucide="clock"></i></div>
+        <div class="stat-content">
+            <h3>{{ stats.terlambat }}</h3>
+            <p>Terlambat Masuk</p>
+        </div>
+    </div>
+    <div class="glass-card stat-card">
+        <div class="stat-icon" style="background:rgba(239,68,68,0.15); color:#EF4444"><i data-lucide="user-x"></i></div>
+        <div class="stat-content">
+            <h3>{{ stats.belum_hadir }}</h3>
+            <p>Belum Hadir / Alpha</p>
+        </div>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="glass-card table-card anim-enter" style="animation-delay:0.15s; margin-top:20px;">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Pegawai</th>
+                    <th>Status</th>
+                    <th>Jam Masuk</th>
+                    <th>Jam Pulang</th>
+                    <th>Durasi Kerja</th>
+                    <th>Status APD (Masuk)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if roster %}
+                    {% for row in roster %}
+                    <tr class="table-row-animate" style="animation-delay:{{ loop.index * 0.025 }}s">
+                        <td>
+                            <div class="cell-name">
+                                {% if row.status == 'Belum Hadir' %}
+                                    <div class="avatar avatar-danger">{{ row.nama[0] | upper }}</div>
+                                {% else %}
+                                    <div class="avatar">{{ row.nama[0] | upper }}</div>
+                                {% endif %}
+                                <span style="font-weight:500;color:var(--text-primary)">{{ row.nama }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if row.status == 'Hadir' %}
+                                <span class="badge badge-success"><i data-lucide="check-circle"></i>Hadir</span>
+                            {% elif row.status == 'Terlambat' %}
+                                <span class="badge badge-warning"><i data-lucide="clock"></i>Terlambat</span>
+                            {% else %}
+                                <span class="badge badge-danger"><i data-lucide="x-circle"></i>Belum Hadir</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.waktu_masuk %}
+                                <div class="cell-time">
+                                    <i data-lucide="log-in" style="width:13px;height:13px;color:var(--accent-blue)"></i>
+                                    {{ row.waktu_masuk | format_datetime }}
+                                </div>
+                            {% else %}
+                                <span style="color:var(--text-muted)">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.waktu_keluar %}
+                                <div class="cell-time">
+                                    <i data-lucide="log-out" style="width:13px;height:13px;color:var(--warning)"></i>
+                                    {{ row.waktu_keluar | format_datetime }}
+                                </div>
+                            {% else %}
+                                <span style="color:var(--text-muted)">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-secondary)">{{ row.durasi }}</span>
+                        </td>
+                        <td>
+                            {% if row.status_apd == 'lengkap' %}
+                                <span class="badge badge-success">Lengkap</span>
+                            {% elif row.status_apd == 'tidak_lengkap' %}
+                                <span class="badge badge-danger">Tidak Lengkap</span>
+                            {% else %}
+                                <span style="color:var(--text-muted)">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <i data-lucide="inbox"></i>
+                                <p>Tidak ada data pegawai</p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pelanggaran Gerbang Section -->
+<div class="glass-card table-card anim-enter" style="margin-top:24px;animation-delay:0.2s">
+    <div class="card-header">
+        <div class="card-title">
+            <i data-lucide="alert-triangle" style="color:#F59E0B"></i>
+            <h3>Pelanggaran di Gerbang (APD Tidak Lengkap)</h3>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Pegawai</th>
+                    <th>Waktu Percobaan</th>
+                    <th>APD Kurang</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if pelanggaran_gerbang %}
+                    {% for row in pelanggaran_gerbang %}
+                    <tr class="table-row-animate" style="animation-delay:{{ loop.index * 0.025 }}s">
+                        <td class="td-center" style="color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:11px">{{ loop.index }}</td>
+                        <td>
+                            <div class="cell-name">
+                                <div class="avatar avatar-danger">{{ row.nama_pegawai[0] | upper }}</div>
+                                <span style="font-weight:500;color:var(--text-primary)">{{ row.nama_pegawai }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="cell-time">
+                                <i data-lucide="clock" style="width:13px;height:13px;color:var(--danger)"></i>
+                                {{ row.waktu | format_datetime }}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="apd-tags">
+                                {% for apd in row.apd_kurang | parse_json %}
+                                    <span class="apd-tag apd-tag-missing">{{ apd }}</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state" style="padding:28px">
+                                <i data-lucide="shield-check" style="color:var(--success)"></i>
+                                <p>Tidak ada pelanggaran di gerbang</p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.lucide) lucide.createIcons();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Pegawai{% endblock %}
+{% block breadcrumb %}Pegawai{% endblock %}
+{% block page_title %}Data Pegawai{% endblock %}
+
+{% block content %}
+
+<!-- Summary -->
+<div class="glass-card summary-bar anim-enter" style="animation-delay:0.05s">
+    <div class="summary-item">
+        <i data-lucide="users"></i>
+        <span>Total Terdaftar: <strong>{{ data | length }}</strong></span>
+    </div>
+    <div class="summary-item">
+        <i data-lucide="shield-check"></i>
+        <span>Patuh APD: <strong>{{ data | selectattr('total_pelanggaran', 'equalto', 0) | list | length }}</strong></span>
+    </div>
+</div>
+
+<!-- Card Grid -->
+<div class="pegawai-grid">
+    {% if data %}
+        {% for pegawai in data %}
+        <div class="pegawai-card glass-card anim-enter" style="animation-delay:{{ loop.index * 0.05 }}s">
+
+            <!-- Card Header -->
+            <div class="pegawai-card-header">
+                <div class="pegawai-avatar">
+                    <span>{{ pegawai.nama[0] | upper }}</span>
+                </div>
+                <div class="pegawai-name">
+                    <h4>{{ pegawai.nama }}</h4>
+                    <span class="pegawai-id">ID #{{ pegawai.id }}</span>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="pegawai-stats">
+                <div class="pegawai-stat">
+                    <div class="pegawai-stat-icon stat-icon-date">
+                        <i data-lucide="calendar-plus"></i>
+                    </div>
+                    <div class="pegawai-stat-info">
+                        <span class="pegawai-stat-label">Terdaftar</span>
+                        <span class="pegawai-stat-value">{{ pegawai.created_at | format_date }}</span>
+                    </div>
+                </div>
+
+                <div class="pegawai-stat">
+                    <div class="pegawai-stat-icon stat-icon-absensi">
+                        <i data-lucide="log-in"></i>
+                    </div>
+                    <div class="pegawai-stat-info">
+                        <span class="pegawai-stat-label">Total Absensi</span>
+                        <span class="pegawai-stat-value">{{ pegawai.total_absensi }}</span>
+                    </div>
+                </div>
+
+                <div class="pegawai-stat">
+                    <div class="pegawai-stat-icon stat-icon-pelanggaran">
+                        <i data-lucide="alert-triangle"></i>
+                    </div>
+                    <div class="pegawai-stat-info">
+                        <span class="pegawai-stat-label">Pelanggaran</span>
+                        <span class="pegawai-stat-value {% if pegawai.total_pelanggaran > 0 %}text-danger{% endif %}">
+                            {{ pegawai.total_pelanggaran }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Badge + RFID -->
+            <div class="pegawai-card-footer">
+                {% if pegawai.total_pelanggaran == 0 %}
+                    <span class="pegawai-badge pegawai-badge-good">
+                        <i data-lucide="award" style="width:11px;height:11px"></i>
+                        Patuh APD
+                    </span>
+                {% elif pegawai.total_pelanggaran <= 3 %}
+                    <span class="pegawai-badge pegawai-badge-warn">
+                        <i data-lucide="info" style="width:11px;height:11px"></i>
+                        Perlu Perhatian
+                    </span>
+                {% else %}
+                    <span class="pegawai-badge pegawai-badge-bad">
+                        <i data-lucide="alert-triangle" style="width:11px;height:11px"></i>
+                        Rawan Pelanggaran
+                    </span>
+                {% endif %}
+
+                <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
+                    {% if pegawai.rfid_uid %}
+                        <span class="rfid-chip">
+                            <i data-lucide="nfc"></i>
+                            {{ pegawai.rfid_uid }}
+                        </span>
+                    {% else %}
+                        <span class="rfid-chip no-rfid">
+                            <i data-lucide="nfc"></i>
+                            Belum Terdaftar
+                        </span>
+                    {% endif %}
+                    <button class="btn-set-rfid" onclick="openRfidModal({{ pegawai.id }}, '{{ pegawai.nama }}', '{{ pegawai.rfid_uid or '' }}')">
+                        <i data-lucide="edit-3"></i>
+                        {{ 'Edit' if pegawai.rfid_uid else 'Daftarkan' }} RFID
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="glass-card empty-full">
+            <div class="empty-state">
+                <i data-lucide="user-plus"></i>
+                <p>Belum ada pegawai terdaftar</p>
+                <span>Pegawai terdaftar otomatis saat terdeteksi oleh sistem</span>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- RFID Registration Modal -->
+<div class="rfid-modal-backdrop" id="rfidModalBackdrop">
+    <div class="rfid-modal">
+        <h3>Daftarkan RFID</h3>
+        <p>Masukkan RFID UID untuk <strong class="rfid-modal-employee-name">—</strong></p>
+        <div class="rfid-input-group">
+            <input type="text" id="rfidUidInput" placeholder="Contoh: A1B2C3D4" maxlength="20" autocomplete="off">
+        </div>
+        <div class="rfid-feedback" id="rfidFeedback"></div>
+        <div class="rfid-modal-actions">
+            <button class="btn-rfid-remove" onclick="removeRfid()" style="display:none">
+                Hapus RFID
+            </button>
+            <button class="btn-rfid-cancel" onclick="closeRfidModal()">
+                Batal
+            </button>
+            <button class="btn-rfid-save" onclick="saveRfid()">
+                Simpan
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.lucide) lucide.createIcons();
+    });
+</script>
+{% endblock %}
