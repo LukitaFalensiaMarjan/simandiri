@@ -32,6 +32,9 @@ mysql-connector-python>=8.0.0
 # Web Framework
 Flask>=3.0.0
 
+# MQTT (komunikasi ESP32 ↔ Server)
+paho-mqtt>=1.6.0
+
 # Optional: untuk performa lebih baik
 # onnx>=1.14.0
 # onnxruntime>=1.15.0

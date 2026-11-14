@@ -183,78 +183,6 @@
         </div>
     </div>
 
-<!-- ═══════════════════════════════════════
-     ROOM ACCESS — LIVE PRESENCE + TIMELINE
-═══════════════════════════════════════ -->
-<div class="room-access-grid anim-enter" style="animation-delay:0.32s">
-
-    <!-- Live Presence Panel -->
-    <div class="glass-card">
-        <div class="card-header">
-            <div class="card-title">
-                <i data-lucide="radio"></i>
-                <h3>Live Room Presence</h3>
-            </div>
-            <div class="room-header-bar">
-                <span class="room-badge">Ruang Produksi A</span>
-            </div>
-        </div>
-
-        <div class="occupancy-counter">
-            <div class="occupancy-number" id="presenceCount">{{ room_stats.total_dalam_ruangan }}</div>
-            <div class="occupancy-label">
-                orang di dalam
-                <br><span>Real-time · Auto-refresh 5s</span>
-            </div>
-        </div>
-
-        <div class="presence-list" id="presenceList">
-            {% if room_stats.presence %}
-                {% for p in room_stats.presence %}
-                <div class="presence-card">
-                    <div class="presence-avatar">{{ p.nama[:2]|upper }}</div>
-                    <div class="presence-info">
-                        <div class="presence-name">{{ p.nama }}</div>
-                        <div class="presence-time">
-                            <i data-lucide="clock"></i>
-                            Masuk {{ p.waktu_masuk.strftime('%H:%M') if p.waktu_masuk else '-' }}
-                        </div>
-                    </div>
-                    <span class="presence-apd-badge {{ 'apd-ok' if p.status_apd == 'lengkap' else 'apd-fail' }}">
-                        {{ 'APD OK' if p.status_apd == 'lengkap' else 'APD ✕' }}
-                    </span>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state-compact">
-                    <i data-lucide="user-x"></i>
-                    <p>Ruangan kosong</p>
-                    <span>Belum ada pegawai di dalam ruangan</span>
-                </div>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Access Timeline -->
-    <div class="glass-card">
-        <div class="card-header">
-            <div class="card-title">
-                <i data-lucide="list"></i>
-                <h3>Riwayat Akses Ruangan</h3>
-            </div>
-            <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-muted)">Hari ini · Auto-refresh 10s</span>
-        </div>
-
-        <div class="access-timeline" id="accessTimeline">
-            <div class="empty-state-compact">
-                <i data-lucide="clock"></i>
-                <p>Memuat riwayat akses...</p>
-                <span>Data akan muncul segera</span>
-            </div>
-        </div>
-    </div>
-
-</div>
 
 <!-- ═══════════════════════════════════════
      RECENT ACTIVITY
@@ -324,10 +252,10 @@
         // 1. Ubah IP di bawah ini sesuai dengan IP LAN masing-masing laptop.
         // 2. Pastikan laptop tersebut menjalankan script `kamera_node.py` atau `main_simandiri.py`
         const cameraIPs = {
-            'cam-gerbang-utama': '192.168.1.8:5001', // Laptop 1 (Server & Gate A)
-            'cam-gerbang-b':     '192.168.1.102:5001', // Laptop 2 (Gate B)
-            'cam-area-1':        '192.168.1.103:5001', // Laptop 3 (Lantai 1)
-            'cam-area-2':        '192.168.1.104:5001'  // Laptop 4 (Lantai 2)
+            'cam-gerbang-utama': '127.0.0.1:5001', // Laptop Server & Gate
+            'cam-gerbang-b':     '172.20.10.3:5001', // Laptop ilham
+            'cam-area-1':        '172.20.10.5:5001', // Laptop chakim
+            'cam-area-2':        '172.20.10.6:5001'  // Laptop basit
         };
 
         for (const [camId, ipAddress] of Object.entries(cameraIPs)) {

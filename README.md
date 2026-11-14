@@ -1,212 +1,111 @@
-# 🚀 GuardVision IoT - Sistem Gerbang Cerdas
+# SIMANDIRI - Sistem Keamanan Mandiri & Terintegrasi
 
-Sistem pengecekan kelengkapan APD (Helm) otomatis menggunakan AI dengan Face Recognition dan YOLOv8.
+SIMANDIRI adalah purwarupa sistem keamanan industri cerdas berbasis *Internet of Things* (IoT) dan *Artificial Intelligence* (AI). Sistem ini dirancang untuk memastikan kedisiplinan dan keselamatan kerja pegawai melalui verifikasi identitas ganda (RFID + Pengenalan Wajah) serta inspeksi Alat Pelindung Diri (APD) secara otomatis menggunakan teknologi *Computer Vision*.
 
-## 🎯 Fitur
+## Fitur Utama
 
-- ✅ **Face Recognition** - Identifikasi pegawai dengan bounding box
-- ✅ **YOLOv8 Detection** - Deteksi helm
-- ✅ **Text-to-Speech** - Feedback suara Bahasa Indonesia
-- ✅ **Stable Tracking** - History-based detection untuk mengurangi flickering
-- ✅ **Real-time Monitoring** - Via webcam
+- **Verifikasi Ganda**: Kombinasi pembacaan kartu RFID (Mifare) dan pemindaian biometrik (Face Recognition) untuk mencegah kecurangan absensi.
+- **Inspeksi K3 Otomatis**: Mendeteksi kelengkapan APD (khususnya helm) secara *real-time* menggunakan model *Deep Learning* YOLOv8.
+- **Sistem Gerbang Terintegrasi**: Mengontrol akses pintu fisik (solenoid lock) melalui ESP32 yang terhubung ke server via protokol MQTT.
+- **Pemantauan CCTV Indoor**: Pemantauan area kerja secara terus-menerus untuk mendeteksi pegawai yang melepaskan APD saat bekerja, dilengkapi dengan teguran audio otomatis.
+- **Web Dashboard**: Antarmuka berbasis web (Flask) untuk mengelola data pegawai, memantau riwayat absensi, melihat log pelanggaran, dan memantau *live streaming* kamera.
+- **Feedback Interaktif**: Layar sentuh HMI (Nextion TFT) dan umpan balik suara (*Text-to-Speech*) dalam bahasa Indonesia untuk memandu pengguna.
 
 ---
 
-## 📦 Instalasi
+## Arsitektur Sistem
+
+Sistem ini terdiri dari beberapa komponen utama:
+
+1. **IoT Edge Node (`arduino/esp32_gerbang/esp32_gerbang.ino`)**
+   - Perangkat keras: ESP32, RFID-RC522, Nextion TFT, Solenoid Door Lock (via Relay), Buzzer.
+   - Fungsi: Membaca UID RFID, mengirimkan data tap ke server via MQTT, mengontrol penguncian fisik, dan memperbarui antarmuka layar Nextion.
+
+2. **Server Pemroses Utama (`main_simandiri.py`)**
+   - Fungsi: Mendengarkan permintaan akses dari MQTT, memvalidasi identitas dengan basis data, mengaktifkan kamera gerbang untuk pengenalan wajah dan pengecekan APD dengan YOLOv8, serta mengirim balik perintah buka/tutup pintu.
+
+3. **CCTV Pemantau Ruangan (`cctv_monitor.py`)**
+   - Fungsi: Kamera pengawas pasif yang terus memindai area kerja. Jika ada pegawai terdaftar yang tidak mengenakan APD, sistem akan memberikan teguran suara otomatis dan mencatat pelanggaran ke basis data.
+
+4. **Web Dashboard (`web/app.py`)**
+   - Fungsi: Panel administrasi untuk memantau status operasional secara keseluruhan, manajemen pegawai, rekap absensi harian, dan menampilkan aliran video dari kamera gerbang maupun CCTV.
+
+5. **Database & Konfigurasi (`database.py` & `config.py`)**
+   - Fungsi: Pengelolaan penyimpanan data absensi, log pelanggaran, data identitas di MySQL, serta pengaturan variabel sistem (kredensial, IP kamera, dll).
+
+---
+
+## Prasyarat Lingkungan (Requirements)
+
+- **Hardware**: Komputer/Laptop Server (minimum 4GB RAM, CPU 2-core), Webcam eksternal/internal, ESP32 beserta komponen pendukung.
+- **Software**: 
+  - Python 3.8+
+  - MySQL Server (XAMPP / MariaDB)
+  - Modul Python (dapat diinstal melalui `requirements.txt`)
+
+### Instalasi Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-**Catatan Windows:** Jika `dlib` gagal install, download wheel dari [sini](https://github.com/z-mahmud22/Dlib_Windows_Python3.x)
+*(Catatan untuk pengguna Windows: Jika library `dlib` untuk `face_recognition` gagal diinstal, silakan unduh wheel pre-compiled yang sesuai dengan versi Python Anda).*
 
 ---
 
-## 🚀 Cara Menggunakan
+## Cara Penggunaan
 
-### Jalankan Sistem
+### 1. Persiapan Database
+1. Pastikan layanan MySQL Anda berjalan.
+2. Skrip Python akan secara otomatis membuat basis data `simandiri_db` dan melakukan migrasi tabel yang diperlukan saat dijalankan pertama kali.
 
+### 2. Mengisi Dataset Wajah
+1. Masukkan foto wajah pegawai ke dalam folder `dataset_wajah/[nama_pegawai]/`.
+2. Format gambar yang disarankan adalah JPG/JPEG dengan wajah terlihat jelas. Sistem akan mengekstrak pola wajah dari foto-foto ini.
+
+### 3. Menjalankan Server Web (Dashboard)
+Jalankan aplikasi Flask untuk membuka antarmuka pemantauan:
+```bash
+python web/app.py
+```
+Akses dashboard melalui peramban di `http://localhost:5000`.
+
+### 4. Menjalankan Node Gerbang Pintar (Gate)
+Jalankan skrip utama pengendali gerbang:
 ```bash
 python main_simandiri.py
 ```
+Kamera akan aktif. Saat pegawai melakukan *tap* RFID, skrip akan memindai wajah dan helm, kemudian memberikan instruksi akses ke ESP32.
 
-**Sistem akan:**
-1. Mendeteksi wajah pegawai dari database
-2. Menyapa pegawai
-3. Mengecek apakah helm terdeteksi
-4. Memberikan akses jika helm terdeteksi
-
-Tekan `q` untuk keluar.
-
----
-
-## 📁 Struktur Project
-
-```
-guardvision-iot/
-├── main_simandiri.py          # ⭐ Aplikasi utama
-├── train_yolo.py              # Training model (opsional)
-├── test_webcam.py             # Test deteksi helm
-├── requirements.txt           # Dependencies
-├── README.md                  # File ini
-│
-├── dataset_apd/               # Dataset APD (YOLO format)
-│   ├── data.yaml
-│   ├── train/
-│   ├── valid/
-│   └── test/
-│
-├── dataset_wajah/             # Dataset wajah pegawai
-│   ├── basit/
-│   ├── chakim/
-│   ├── ilham/
-│   └── luki/
-│
-└── runs/detect/               # Model training
-    └── simandiri_apd_model_final/
-        └── weights/best.pt
-```
-
----
-
-## ⚙️ Konfigurasi
-
-### APD yang Dicek
-
-Sistem saat ini hanya mengecek: **HELM**
-
-Jika helm terdeteksi → APD lengkap → Akses diberikan
-
-### Parameter Deteksi
-
-```python
-conf=0.25              # Confidence threshold
-iou=0.4                # IoU threshold
-```
-
-### Parameter Tracking
-
-```python
-HISTORY_THRESHOLD = 2  # Helm harus terdeteksi 2 frame berturut-turut
-HISTORY_INCREMENT = 3  # Naik cepat saat terdeteksi
-HISTORY_DECAY = 1      # Turun lambat saat tidak terdeteksi
-```
-
----
-
-## 🧪 Testing
-
-### Test Deteksi Helm
-
+### 5. Menjalankan CCTV Indoor
+Buka jendela terminal baru dan jalankan:
 ```bash
-python test_webcam.py
+python cctv_monitor.py
 ```
+CCTV akan aktif dan secara pasif memantau pelanggaran APD di area kerja.
 
-Test apakah helm terdeteksi dengan baik di webcam.
-
----
-
-## 🎓 Training Model (Opsional)
-
-Jika ingin training ulang model:
-
-```bash
-python train_yolo.py
-```
-
-- Durasi: 60-90 menit
-- Model: YOLOv8s
-- Output: `runs/detect/simandiri_apd_model_final/weights/best.pt`
-
-Setelah training, update path model di `main_simandiri.py` line 13.
+### 6. Node ESP32 (Hardware)
+1. Unggah kode `arduino/esp32_gerbang/esp32_gerbang.ino` ke papan ESP32 menggunakan Arduino IDE.
+2. Pastikan kredensial Wi-Fi dan pengaturan MQTT Broker (secara bawaan menggunakan `broker.emqx.io`) sesuai dengan `config.py` pada server Python.
 
 ---
 
-## 🔧 Troubleshooting
-
-### Helm Tidak Terdeteksi?
-
-**Solusi:**
-1. Pastikan helm yang dipakai mirip dengan dataset training
-2. Perbaiki lighting ruangan (harus cukup terang)
-3. Turunkan confidence: `conf=0.20` di `main_simandiri.py`
-4. Test dengan: `python test_webcam.py`
-
-### Wajah Tidak Terdeteksi?
-
-**Solusi:**
-1. Pastikan folder `dataset_wajah/` terisi dengan benar
-2. Setiap orang minimal 3-5 foto
-3. Foto harus format JPG (bukan HEIC)
-
-### Kotak Deteksi Flickering?
-
-**Solusi:**
-Edit `main_simandiri.py`:
-```python
-HISTORY_THRESHOLD = 3  # Naikkan untuk lebih stabil
-```
+## Pengaturan (Configuration)
+Seluruh variabel operasional dapat disesuaikan di `config.py`, meliputi:
+- Konfigurasi koneksi MySQL
+- Pemilihan indeks kamera (Webcam)
+- Toleransi *Face Recognition* dan model YOLOv8
+- Broker MQTT (Host, Port, dan Topik)
+- Pengaturan waktu absensi (Shift)
 
 ---
 
-## 📊 Spesifikasi Sistem
+## Troubleshooting
 
-### Minimum Requirements
-- Python 3.8+
-- Webcam 480p
-- RAM 4GB
-- CPU 2 core
-
-### Dependencies
-- OpenCV
-- Ultralytics YOLOv8
-- face_recognition
-- gTTS
-- pygame
+- **Sensor RFID (RC522) Freeze / Berhenti Membaca**: Sering kali terjadi akibat induksi elektromagnetik (EMI) dari pergerakan solenoid. Solusi telah diterapkan pada kode ESP32 dengan melakukan *re-initialization* (`rfid.PCD_Init()`) secara otomatis. Jika masalah berlanjut, pisahkan sumber daya (VCC) relay solenoid dari suplai utama ESP32.
+- **Wajah Tidak Terdeteksi**: Pastikan resolusi kamera memadai dan pencahayaan ruangan optimal. Sesuaikan nilai `FACE_TOLERANCE` di `config.py` jika sistem terlalu sensitif.
+- **Gagal Terhubung ke MQTT**: Jika menemui *Error rc=-2*, kemungkinan ISP atau jaringan hotspot Anda memblokir lalu lintas port MQTT (1883). Gunakan jaringan alternatif.
 
 ---
 
-## 🎯 Workflow Sistem
-
-1. **Deteksi Wajah** → Identifikasi pegawai dari database
-2. **Sapaan** → Sistem menyapa pegawai
-3. **Cek Helm** → Deteksi apakah helm terdeteksi
-4. **Keputusan:**
-   - ✅ Helm terdeteksi → "Terimakasih, silahkan masuk"
-   - ❌ Helm tidak terdeteksi → "Silakan pakai helm terlebih dahulu"
-
----
-
-## 📝 Catatan Penting
-
-- **Dataset Wajah**: 4 pegawai (basit, chakim, ilham, luki)
-- **Foto per Orang**: 5 foto untuk efisiensi loading
-- **APD yang Dicek**: Hanya helm (sistem disederhanakan)
-- **Model**: YOLOv8 custom trained dengan dataset APD
-
----
-
-## 🎯 Status Project
-
-- ✅ Face Recognition: **Berfungsi dengan bounding box**
-- ✅ Deteksi Helm: **Berfungsi**
-- ✅ Text-to-Speech: **Berfungsi (Bahasa Indonesia)**
-- ✅ Stable Tracking: **Implemented**
-- ✅ Sistem Sederhana: **Hanya cek helm**
-
----
-
-## 📞 Support
-
-Jika ada masalah:
-1. Test dengan `python test_webcam.py`
-2. Cek lighting ruangan
-3. Pastikan helm yang dipakai mirip dengan dataset
-4. Adjust confidence threshold jika perlu
-
----
-
-**GuardVision IoT** 🛡️  
-*Sistem Gerbang Cerdas dengan AI untuk Keselamatan Kerja*
-
-**Sistem Sederhana - Hanya Cek Helm**
+**Dikembangkan untuk keperluan purwarupa inovasi keselamatan kerja cerdas (SIMANDIRI).**

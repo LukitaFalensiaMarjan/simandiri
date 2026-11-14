@@ -13,10 +13,47 @@ import cv2
 import os
 import time
 import threading
-import face_recognition
+try:
+    import face_recognition
+    HAS_FACE_RECOGNITION = True
+except ImportError:
+    print("\n[WARNING] Module 'face_recognition' tidak ditemukan!")
+    print("[WARNING] Menggunakan OpenCV Haar Cascade sebagai fallback.\n")
+    HAS_FACE_RECOGNITION = False
+
+    class MockFaceRecognition:
+        def __init__(self):
+            # Memuat haar cascade untuk deteksi wajah dasar
+            self.cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            
+        def load_image_file(self, path):
+            return None
+            
+        def face_encodings(self, image, known_face_locations=None):
+            if known_face_locations is None:
+                return []
+            return [[] for _ in known_face_locations]
+            
+        def face_locations(self, image):
+            # image berupa RGB
+            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            faces = self.cascade.detectMultiScale(gray, 1.1, 4)
+            locs = []
+            for (x, y, w, h) in faces:
+                locs.append((y, x+w, y+h, x))
+            return locs
+            
+        def compare_faces(self, encodings, face_encoding, tolerance=0.5):
+            return [False] * len(encodings)
+
+    face_recognition = MockFaceRecognition()
+
 from ultralytics import YOLO
+
+import os
 from gtts import gTTS
-import pygame
+import playsound
+HAS_AUDIO = True
 from collections import defaultdict
 from database import DatabaseManager
 from config import (
@@ -25,8 +62,37 @@ from config import (
     MAX_PHOTOS_PER_PERSON, FACE_TOLERANCE, YOLO_CONFIDENCE, YOLO_IOU,
     CCTV_WARNING_COOLDOWN, CCTV_MISSING_THRESHOLD, CCTV_CAMERA_NAME
 )
+from flask import Flask, Response
 
-pygame.mixer.init()
+stream_app = Flask(__name__)
+current_stream_frame = None
+
+def generate_frames():
+    global current_stream_frame
+    while True:
+        if current_stream_frame is not None:
+            ret, buffer = cv2.imencode('.jpg', current_stream_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+            if ret:
+                frame = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        time.sleep(0.05)
+
+@stream_app.route('/video_feed')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+def run_stream_app():
+    import logging
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
+    # Jalankan stream server di port 5001
+    stream_app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
+
+threading.Thread(target=run_stream_app, daemon=True).start()
+
+
+
 
 # ============================================================
 #  INISIALISASI
@@ -56,8 +122,9 @@ is_speaking = False
 audio_lock = threading.Lock()
 
 def play_audio(teks, filename="suara_cctv.mp3"):
-    """Putar peringatan suara secara non-blocking."""
+    """Putar peringatan suara menggunakan gTTS dan playsound."""
     global is_speaking
+    
     with audio_lock:
         if is_speaking:
             return
@@ -68,11 +135,7 @@ def play_audio(teks, filename="suara_cctv.mp3"):
         try:
             tts = gTTS(text=teks, lang='id')
             tts.save(filename)
-            pygame.mixer.music.load(filename)
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                pygame.time.Clock().tick(10)
-            pygame.mixer.music.unload()
+            playsound.playsound(filename)
             if os.path.exists(filename):
                 os.remove(filename)
         except Exception as e:
@@ -321,7 +384,7 @@ while cap.isOpened():
     # Proses setiap wajah yang terdeteksi
     pegawai_dalam_frame = []
 
-    for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings_list):
+    for idx, ((top, right, bottom, left), face_encoding) in enumerate(zip(face_locations, face_encodings_list)):
         # Scale kembali ke ukuran frame asli
         top *= 2
         right *= 2
@@ -347,7 +410,9 @@ while cap.isOpened():
                     cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
 
         if nama == "Tidak Dikenal":
-            continue
+            # Berikan nama unik sementara agar tetap dilacak status APD-nya
+            nama = f"Orang_{idx+1}"
+            warna_kotak = (0, 165, 255) # Warna orange untuk fallback
 
         # Cari APD yang terkait dengan wajah ini
         face_box = (left, top, right, bottom)
@@ -386,10 +451,7 @@ while cap.isOpened():
 
                     # Peringatan suara
                     if not is_speaking:
-                        play_audio(
-                            f"Perhatian {nama}, {apd_teks} anda terlepas. "
-                            f"Segera pakai kembali A P D anda."
-                        )
+                        play_audio("tolong lengkapi APD anda")
 
                     # Catat ke database
                     if db:
@@ -449,6 +511,9 @@ while cap.isOpened():
             cv2.putText(annotated_frame, "!! PELANGGARAN APD TERDETEKSI !!",
                         (annotated_frame.shape[1] // 2 - 250, 78),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+
+    # Simpan frame untuk web streaming
+    current_stream_frame = annotated_frame.copy()
 
     cv2.imshow(f"Simandiri - {CCTV_CAMERA_NAME}", annotated_frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):

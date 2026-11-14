@@ -16,6 +16,11 @@
         <i data-lucide="shield-check"></i>
         <span>Patuh APD: <strong>{{ data | selectattr('total_pelanggaran', 'equalto', 0) | list | length }}</strong></span>
     </div>
+    <div style="flex-grow: 1;"></div>
+    <button class="btn-primary" onclick="openAddPegawaiModal()" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;border:none;background:var(--primary);color:white;cursor:pointer;font-weight:500;">
+        <i data-lucide="user-plus" style="width:18px;height:18px"></i>
+        Tambah Pegawai
+    </button>
 </div>
 
 <!-- Card Grid -->
@@ -146,9 +151,77 @@
     </div>
 </div>
 
+<!-- Add Pegawai Modal -->
+<div class="rfid-modal-backdrop" id="addPegawaiModalBackdrop">
+    <div class="rfid-modal">
+        <h3>Tambah Pegawai Baru</h3>
+        <p>Masukkan nama pegawai untuk didaftarkan ke sistem.</p>
+        <div class="rfid-input-group">
+            <input type="text" id="newPegawaiName" placeholder="Contoh: Basit" maxlength="100" autocomplete="off">
+        </div>
+        <div class="rfid-feedback" id="addPegawaiFeedback"></div>
+        <div class="rfid-modal-actions">
+            <button class="btn-rfid-cancel" onclick="closeAddPegawaiModal()">
+                Batal
+            </button>
+            <button class="btn-rfid-save" onclick="submitAddPegawai()">
+                Tambahkan
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         if (window.lucide) lucide.createIcons();
     });
+
+    function openAddPegawaiModal() {
+        document.getElementById('addPegawaiModalBackdrop').classList.add('active');
+        document.getElementById('newPegawaiName').value = '';
+        document.getElementById('newPegawaiName').focus();
+        document.getElementById('addPegawaiFeedback').textContent = '';
+        document.getElementById('addPegawaiFeedback').className = 'rfid-feedback';
+    }
+
+    function closeAddPegawaiModal() {
+        document.getElementById('addPegawaiModalBackdrop').classList.remove('active');
+    }
+
+    async function submitAddPegawai() {
+        const nameInput = document.getElementById('newPegawaiName');
+        const feedback = document.getElementById('addPegawaiFeedback');
+        const name = nameInput.value.trim();
+
+        if (!name) {
+            feedback.textContent = 'Nama tidak boleh kosong!';
+            feedback.className = 'rfid-feedback error';
+            return;
+        }
+
+        feedback.textContent = 'Menyimpan...';
+        feedback.className = 'rfid-feedback loading';
+
+        try {
+            const res = await fetch('/api/pegawai/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nama: name })
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                feedback.textContent = data.message;
+                feedback.className = 'rfid-feedback success';
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                feedback.textContent = data.message || 'Terjadi kesalahan.';
+                feedback.className = 'rfid-feedback error';
+            }
+        } catch (e) {
+            feedback.textContent = 'Gagal terhubung ke server.';
+            feedback.className = 'rfid-feedback error';
+        }
+    }
 </script>
 {% endblock %}

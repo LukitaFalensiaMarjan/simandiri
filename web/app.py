@@ -245,39 +245,6 @@ def _read_ppe_status():
         return {}
 
 
-@app.route('/akses-ruangan')
-def akses_ruangan():
-    """Halaman akses ruangan (dedicated page)."""
-    tanggal = request.args.get('tanggal', None)
-    aksi = request.args.get('aksi', None)
-    page = request.args.get('page', 1, type=int)
-    per_page = 20
-    offset = (page - 1) * per_page
-
-    ruangan = db.get_default_ruangan()
-    ruangan_id = ruangan['id'] if ruangan else None
-
-    history = db.get_akses_history(
-        ruangan_id=ruangan_id, tanggal=tanggal,
-        limit=per_page, offset=offset
-    )
-    total = db.get_akses_history_count(ruangan_id=ruangan_id, tanggal=tanggal)
-    total_pages = max(1, (total + per_page - 1) // per_page)
-
-    presence = db.get_presence(ruangan_id)
-    room_stats = db.get_room_stats()
-
-    return render_template('akses_ruangan.html',
-                           ruangan=ruangan,
-                           presence=presence,
-                           history=history,
-                           room_stats=room_stats,
-                           tanggal=tanggal or '',
-                           aksi=aksi or '',
-                           page=page,
-                           total_pages=total_pages,
-                           total=total)
-
 
 @app.route('/api/rfid/tap', methods=['POST'])
 def api_rfid_tap():
@@ -532,6 +499,35 @@ def api_remove_rfid(pegawai_id):
         return jsonify({'status': 'ok', 'message': 'RFID berhasil dihapus'})
     else:
         return jsonify({'status': 'error', 'message': 'Gagal menghapus RFID'}), 500
+
+
+@app.route('/api/pegawai/add', methods=['POST'])
+def api_add_pegawai():
+    """API: Tambah pegawai manual beserta folder dataset wajah."""
+    data = request.get_json()
+    if not data or 'nama' not in data:
+        return jsonify({'status': 'error', 'message': 'Nama pegawai diperlukan'}), 400
+    
+    nama = data['nama'].strip()
+    if not nama:
+        return jsonify({'status': 'error', 'message': 'Nama tidak boleh kosong'}), 400
+        
+    try:
+        # Tambah ke DB
+        pegawai_id = db.get_or_create_pegawai(nama)
+        
+        # Buat folder dataset untuk wajah
+        from config import FACE_DATASET_PATH
+        import os
+        folder_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), FACE_DATASET_PATH, nama.lower())
+        os.makedirs(folder_path, exist_ok=True)
+        
+        return jsonify({
+            'status': 'ok', 
+            'message': f'Pegawai {nama} berhasil ditambahkan! Silakan upload foto ke folder dataset_wajah/{nama.lower()}.'
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Gagal menambahkan: {str(e)}'}), 500
 
 
 # ============================================================

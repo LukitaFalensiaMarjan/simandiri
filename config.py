@@ -55,9 +55,33 @@ CCTV_MISSING_THRESHOLD = 8  # Frame berturut-turut sebelum trigger peringatan
 CCTV_CAMERA_NAME = "CCTV-Indoor-1"  # Nama kamera untuk logging
 
 # --- RFID ACCESS CONTROL ---
-PPE_STATUS_FILE = 'ppe_status.json'       # Shared PPE state file (written by main_simandiri.py)
+PPE_STATUS_FILE    = 'ppe_status.json'    # Shared PPE state file
+RFID_TRIGGER_FILE  = 'rfid_trigger.json'  # Shared RFID trigger state file
 PPE_STATUS_MAX_AGE = 60                   # Max age in seconds before PPE data is considered stale
-RFID_REQUIRE_PPE_COMPLETE = True          # Require full PPE for room entry
+RFID_REQUIRE_PPE_COMPLETE = True
+
+# --- MQTT BROKER ---
+# Konfigurasi EMQX Public Broker
+MQTT_BROKER_HOST = 'broker.emqx.io'
+MQTT_BROKER_PORT = 1883
+MQTT_CLIENT_ID   = 'simandiri-server-lukit'  # Client ID unik untuk server
+
+# MQTT Topics
+MQTT_TOPIC_RFID_TAP     = 'simandiri/lukit/rfid/tap'      # ESP32 → Server
+MQTT_TOPIC_GATE_LOCK    = 'simandiri/lukit/gate/lock'      # Server → ESP32
+MQTT_TOPIC_NEXTION_PAGE = 'simandiri/lukit/nextion/page'   # Server → ESP32
+MQTT_TOPIC_NEXTION_NAME = 'simandiri/lukit/nextion/name'   # Server → ESP32
+
+# --- NEXTION TFT PAGE NAMES (harus sama dengan nama page di Nextion Editor) ---
+NEXTION_PAGE_STANDBY    = 'Standby'
+NEXTION_PAGE_VERIFIKASI = 'Verifikasi'
+NEXTION_PAGE_DITERIMA   = 'Diterima'
+NEXTION_PAGE_DITOLAK    = 'Ditolak'
+
+# --- TIMING GERBANG ---
+RFID_FACE_TIMEOUT  = 10   # Detik maksimal menunggu wajah setelah RFID tap
+RFID_FINISH_DELAY  = 2    # Detik jeda setelah diterima/ditolak sebelum kembali Standby
+DOOR_UNLOCK_DURATION = 5  # Detik pintu terbuka sebelum terkunci kembali
 
 # --- WEB DASHBOARD ---
 WEB_HOST = '0.0.0.0'

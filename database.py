@@ -162,13 +162,13 @@ class DatabaseManager:
                 cursor.execute("ALTER TABLE absensi MODIFY COLUMN tanggal DATE NOT NULL")
                 conn.commit()
             except Error as e:
-                print(f"   ❌ Gagal melakukan alter table: {e}")
+                print(f"   [ERROR] Gagal melakukan alter table: {e}")
                 
             try:
                 cursor.execute("ALTER TABLE absensi ADD UNIQUE KEY uq_pegawai_tanggal (pegawai_id, tanggal)")
                 conn.commit()
             except Error as e:
-                print(f"   ⚠️ Peringatan saat menambah unique key (mungkin ada data duplikat): {e}")
+                print(f"   [WARNING] Peringatan saat menambah unique key (mungkin ada data duplikat): {e}")
                 
             print("   [OK] Migrasi database selesai.")
 
@@ -181,7 +181,7 @@ class DatabaseManager:
                 conn.commit()
                 print("   [OK] Kolom 'rfid_uid' berhasil ditambahkan.")
             except Error as e:
-                print(f"   ❌ Gagal menambah kolom rfid_uid: {e}")
+                print(f"   [ERROR] Gagal menambah kolom rfid_uid: {e}")
 
         # Migrasi: Tambah kolom waktu_keluar dan status_kehadiran ke tabel absensi
         cursor.execute("SHOW COLUMNS FROM absensi LIKE 'waktu_keluar'")
@@ -193,7 +193,7 @@ class DatabaseManager:
                 conn.commit()
                 print("   [OK] Kolom absensi industri berhasil ditambahkan.")
             except Error as e:
-                print(f"   ❌ Gagal menambah kolom absensi industri: {e}")
+                print(f"   [ERROR] Gagal menambah kolom absensi industri: {e}")
 
         cursor.close()
         conn.close()
@@ -254,7 +254,15 @@ class DatabaseManager:
 
         if existing:
             absensi_id = existing['id']
-            print(f"   ℹ️ Absensi sudah ada hari ini: {nama} (Tidak diupdate)")
+            old_status = existing['status_apd']
+            # Jika sebelumnya 'tidak_lengkap' tapi sekarang 'lengkap', atau sekadar update hasil percobaan terbaru
+            cursor.execute("""
+                UPDATE absensi 
+                SET status_apd = %s, apd_terdeteksi = %s, apd_kurang = %s 
+                WHERE id = %s
+            """, (status_apd, apd_terdeteksi_json, apd_kurang_json, absensi_id))
+            conn.commit()
+            print(f"   [INFO] Absensi diupdate: {nama} - APD {status_apd} (Sebelumnya: {old_status})")
         else:
             # Belum absen hari ini -> INSERT baru
             cursor.execute("""
@@ -265,7 +273,7 @@ class DatabaseManager:
                   apd_terdeteksi_json, apd_kurang_json, status_kehadiran))
             conn.commit()
             absensi_id = cursor.lastrowid
-            print(f"   [INFO] Absensi diupdate: {nama} - APD {status_apd} - {status_kehadiran}")
+            print(f"   [INFO] Absensi baru: {nama} - APD {status_apd} - {status_kehadiran}")
 
         # Selalu catat ke riwayat gerbang (history setiap percobaan)
         cursor.execute("""
